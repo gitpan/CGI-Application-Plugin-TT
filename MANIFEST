@@ -7,7 +7,17 @@ META.yml
 README
 t/01_basic.t
 t/02_error.t
+t/03_tname.t
+t/04_singleton.t
+t/05_include_path.t
 t/99_pod.t
+t/include1/TestAppIncludePath/test_mode.tmpl
+t/include2/TestAppIncludePath/test_mode.tmpl
 t/TestAppBase.pm
 t/TestAppBasic.pm
 t/TestAppError.pm
+t/TestAppIncludePath.pm
+t/TestAppSingleton.pm
+t/TestAppTName.pm
+t/TestAppTName/test.tmpl
+t/TestAppTName/test_mode.tmpl

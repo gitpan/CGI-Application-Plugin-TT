@@ -1,5 +1,18 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
+0.06  Thu Feb  3 15:38:39 EST 2005
+
+    - Document use of tt_config as a class method for singleton
+      support
+    - Some other small documentation cleanups
+
+0.05  Mon Jan 24 11:47:06 EST 2005
+
+    - add tt_template_name which autogenerates template filenames
+    - tt_process will call tt_template_name if the template
+      name is not provided as an arguement
+    - add Singleton support for TT object
+
 0.04  Fri Dec  3 12:02:56 EST 2004
 
     - die if there is an error processing a template in tt_process

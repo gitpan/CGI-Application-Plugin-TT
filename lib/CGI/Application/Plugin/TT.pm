@@ -3,6 +3,8 @@ package CGI::Application::Plugin::TT;
 use Template 2.0;
 use CGI::Application 3.0;
 use Carp;
+use File::Spec ();
+use Scalar::Util ();
 
 use strict;
 use vars qw($VERSION @EXPORT);
@@ -10,15 +12,25 @@ use vars qw($VERSION @EXPORT);
 require Exporter;
 
 @EXPORT = qw(
-  tt_obj
-  tt_config
-  tt_params
-  tt_clear_params
-  tt_process
+    tt_obj
+    tt_config
+    tt_params
+    tt_clear_params
+    tt_process
+    tt_include_path
+    tt_template_name
 );
-sub import { goto &Exporter::import }
+sub import {
+    my $pkg = shift;
+    my $callpkg = caller;
+    no strict 'refs';
+    foreach my $sym (@EXPORT) {
+        *{"${callpkg}::$sym"} = \&{$sym};
+    }
+    $callpkg->tt_config(@_) if @_;
+}
 
-$VERSION = '0.04';
+$VERSION = '0.06';
 
 ##############################################
 ###
@@ -31,12 +43,20 @@ $VERSION = '0.04';
 # during a request cycle.
 #
 sub tt_obj {
-  my $self = shift;
+    my $self = shift;
 
-  if (!$self->{__TT_OBJ}) {
-    $self->{__TT_OBJ} = Template->new( $self->{__TT_CONFIG}->{TEMPLATE_OPTIONS} ) || carp "Can't load Template";
-  }
-  return $self->{__TT_OBJ};
+    my ($tt, $options, $frompkg) = _get_object_or_options($self);
+
+    if (!$tt) {
+        my $tt_options = $options->{TEMPLATE_OPTIONS};
+        if (keys %{$options->{TEMPLATE_OPTIONS}}) {
+          $tt = Template->new( $options->{TEMPLATE_OPTIONS} ) || carp "Can't load Template";
+        } else {
+          $tt = Template->new || carp "Can't load Template";
+        }
+        _set_object($frompkg||$self, $tt);
+    }
+    return $tt;
 }
 
 ##############################################
@@ -49,28 +69,47 @@ sub tt_obj {
 #
 sub tt_config {
     my $self = shift;
+    my $class = ref $self ? ref $self : $self;
+
+    my $tt_config;
+    if (ref $self) {
+        die "Calling tt_config after the tt object has already been created" if @_ && defined $self->{__TT};
+        $tt_config = $self->{__TT_CONFIG} ||= {};
+    } else {
+        no strict 'refs';
+        ${$class.'::__TT_CONFIG'} ||= {};
+        $tt_config = ${$class.'::__TT_CONFIG'};
+    }
 
     if (@_) {
-      carp "Calling tt_config after the tt object has already been created" if (defined $self->{__TT_OBJ});
       my $props;
       if (ref($_[0]) eq 'HASH') {
           my $rthash = %{$_[0]};
-          $props = $self->_cap_hash($_[0]);
+          $props = CGI::Application->_cap_hash($_[0]);
       } else {
-          $props = $self->_cap_hash({ @_ });
+          $props = CGI::Application->_cap_hash({ @_ });
       }
 
+      my %options;
       # Check for TEMPLATE_OPTIONS
       if ($props->{TEMPLATE_OPTIONS}) {
-        carp "tt_config error:  parameter TEMPLATE_OPTIONS is not a hash reference" if ref $props->{TEMPLATE_OPTIONS} ne 'HASH';
-        $self->{__TT_CONFIG}->{TEMPLATE_OPTIONS} = delete $props->{TEMPLATE_OPTIONS};
+          carp "tt_config error:  parameter TEMPLATE_OPTIONS is not a hash reference"
+              if Scalar::Util::reftype($props->{TEMPLATE_OPTIONS}) ne 'HASH';
+          $tt_config->{TEMPLATE_OPTIONS} = delete $props->{TEMPLATE_OPTIONS};
+      }
+
+      # Check for TEMPLATE_NAME_GENERATOR
+      if ($props->{TEMPLATE_NAME_GENERATOR}) {
+          carp "tt_config error:  parameter TEMPLATE_NAME_GENERATOR is not a subroutine reference"
+              if Scalar::Util::reftype($props->{TEMPLATE_NAME_GENERATOR}) ne 'CODE';
+          $tt_config->{TEMPLATE_NAME_GENERATOR} = delete $props->{TEMPLATE_NAME_GENERATOR};
       }
 
       # If there are still entries left in $props then they are invalid
       carp "Invalid option(s) (".join(', ', keys %$props).") passed to tt_config" if %$props;
     }
 
-    $self->{__TT_CONFIG};
+    $tt_config;
 }
 
 ##############################################
@@ -84,29 +123,29 @@ sub tt_config {
 # request cycle.
 #
 sub tt_params {
-  my $self = shift;
-  my @data = @_;
+    my $self = shift;
+    my @data = @_;
 
-  # Define the params stash if it doesn't exist
-  $self->{__TT_PARAMS} ||= {};
+    # Define the params stash if it doesn't exist
+    $self->{__TT_PARAMS} ||= {};
 
-  if (@data) {
-    my $params    = $self->{__TT_PARAMS};
-    my $newparams = {};
-    if (ref $data[0] eq 'HASH') {
-      # hashref
-      %$newparams = %{ $data[0] };
-    } elsif ( (@data % 2) == 0 ) {
-      %$newparams = @data;
-    } else {
-      carp "tt_params requires a hash or hashref!";
+    if (@data) {
+        my $params    = $self->{__TT_PARAMS};
+        my $newparams = {};
+        if (ref $data[0] eq 'HASH') {
+            # hashref
+            %$newparams = %{ $data[0] };
+        } elsif ( (@data % 2) == 0 ) {
+            %$newparams = @data;
+        } else {
+            carp "tt_params requires a hash or hashref!";
+        }
+
+        # merge the new values into our stash of parameters
+        @$params{keys %$newparams} = values %$newparams;
     }
 
-    # merge the new values into our stash of parameters
-    @$params{keys %$newparams} = values %$newparams;
-  }
-
-  return $self->{__TT_PARAMS};
+    return $self->{__TT_PARAMS};
 }
 
 ##############################################
@@ -119,12 +158,12 @@ sub tt_params {
 # been set during this request cycle.
 #
 sub tt_clear_params {
-  my $self = shift;
+    my $self = shift;
 
-  my $params = $self->{__TT_PARAMS};
-  $self->{__TT_PARAMS} = {};
+    my $params = $self->{__TT_PARAMS};
+    $self->{__TT_PARAMS} = {};
 
-  return $params;
+    return $params;
 }
 
 ##############################################
@@ -140,11 +179,11 @@ sub tt_clear_params {
 # of template data
 #
 sub tt_pre_process {
-  my $self = shift;
-  my $file = shift;
-  my $vars = shift;
+    my $self = shift;
+    my $file = shift;
+    my $vars = shift;
 
-  # Nothing to pre process, yet!
+    # Nothing to pre process, yet!
 }
 
 ##############################################
@@ -162,10 +201,10 @@ sub tt_pre_process {
 #        cgiapp_postrun method
 #
 sub tt_post_process {
-  my $self    = shift;
-  my $htmlref = shift;
+    my $self    = shift;
+    my $htmlref = shift;
 
-  # Nothing to post process, yet!
+    # Nothing to post process, yet!
 }
 
 ##############################################
@@ -178,25 +217,142 @@ sub tt_post_process {
 #  the resulting html as a scalar ref
 #
 sub tt_process {
-  my $self = shift;
-  my $file = shift;
-  my $vars = shift || {};
-  my $html = '';
+    my $self = shift;
+    my $file = shift;
+    my $vars = shift;
+    my $html = '';
 
-  # Call tt_pre_process hook
-  $self->tt_pre_process($file, $vars) if $self->can('tt_pre_process');
+    if (! defined($vars) && Scalar::Util::reftype($file) eq 'HASH') {
+        $vars = $file;
+        $file = $self->tt_template_name;
+    }
+    $vars ||= {};
 
-  # Include any parameters that may have been
-  # set with tt_params
-  my %params = ( %{ $self->tt_params() }, %$vars );
+    # Call tt_pre_process hook
+    $self->tt_pre_process($file, $vars) if $self->can('tt_pre_process');
 
-  $self->tt_obj->process($file, \%params, \$html) || croak $self->tt_obj->error();
+    # Include any parameters that may have been
+    # set with tt_params
+    my %params = ( %{ $self->tt_params() }, %$vars );
 
-  # Call tt_post_process hook
-  $self->tt_post_process(\$html) if $self->can('tt_post_process');
+    $self->tt_obj->process($file, \%params, \$html) || croak $self->tt_obj->error();
 
-  return \$html;
+    # Call tt_post_process hook
+    $self->tt_post_process(\$html) if $self->can('tt_post_process');
+
+    return \$html;
 }
+
+##############################################
+###
+###   tt_include_path
+###
+##############################################
+#
+# Change the include path after the template object
+# has already been created
+#
+sub tt_include_path {
+    my $self = shift;
+
+    $self->tt_obj->context->load_templates->[0]->include_path(ref($_[0]) ? $_[0] : [@_]);
+
+    return;
+}
+
+##############################################
+###
+###   tt_template_name
+###
+##############################################
+#
+# Auto-generate the filename of a template based on
+# the current module, and the name of the 
+# function that called us.
+#
+sub tt_template_name {
+    my $self = shift;
+
+    my ($tt, $options, $frompkg) = _get_object_or_options($self);
+
+    my $func = $options->{TEMPLATE_NAME_GENERATOR} || \&__tt_template_name;
+    return $self->$func;
+}
+
+##############################################
+###
+###   __tt_template_name
+###
+##############################################
+#
+# Generate the filename of a template based on
+# the current module, and the name of the 
+# function that called us.
+#
+# example:
+#   module $self is blessed into:  My::Module
+#   function name that called us:  my_function
+#
+#   generates:  My/Module/my_function.tmpl
+#
+sub __tt_template_name {
+    my $self = shift;
+
+    # the directory is based on the object's package name
+    my $dir = File::Spec->catdir(split(/::/, ref($self)));
+    #ref($self) =~ /([^:]+)$/;
+    #my $dir = $1;
+
+    # the filename is the method name of the caller
+    (caller(2))[3] =~ /([^:]+)$/;
+    my $name = $1;
+    if ($name eq 'tt_process') {
+        # we were called from tt_process, so go back once more on the caller stack
+        (caller(3))[3] =~ /([^:]+)$/;
+        $name = $1;
+    }
+    return File::Spec->catfile($dir, $name.'.tmpl');
+}
+
+##
+## Private methods
+##
+sub _set_object {
+    my $self = shift;
+    my $tt  = shift;
+    my $class = ref $self ? ref $self : $self;
+
+    if (ref $self) {
+        $self->{__TT_OBJECT} = $tt;
+    } else {
+        no strict 'refs';
+        ${$class.'::__TT_OBJECT'} = $tt;
+    }
+}
+
+sub _get_object_or_options {
+    my $self = shift;
+    my $class = ref $self ? ref $self : $self;
+
+    # Handle the simple case by looking in the object first
+    if (ref $self) {
+        return ($self->{__TT_OBJECT}, $self->{__TT_CONFIG}) if $self->{__TT_OBJECT};
+        return (undef, $self->{__TT_CONFIG}) if $self->{__TT_CONFIG};
+    }
+
+    # See if we can find them in the class hierarchy
+    #  We look at each of the modules in the @ISA tree, and
+    #  their parents as well until we find either a tt
+    #  object or a set of configuration parameters
+    require Class::ISA;
+    foreach my $super ($class, Class::ISA::super_path($class)) {
+        no strict 'refs';
+        return (${$super.'::__TT_OBJECT'}, ${$super.'::__TT_CONFIG'}, $super) if ${$super.'::__TT_OBJECT'};
+        return (undef, ${$super.'::__TT_CONFIG'}, $super) if ${$super.'::__TT_CONFIG'};
+    }
+    return;
+}
+
 
 1;
 __END__
@@ -240,14 +396,22 @@ to load a template.
 
 =head2 tt_process
 
-This is a simple wrapper around the Template Toolkit process method.  It accepts two parameters,
-a template filename, and a hashref of template parameters.  The return value will be a scalar
+This is a simple wrapper around the Template Toolkit process method.  It accepts one or two parameters,
+a template filename, and a hashref of template parameters (the template filename is optional, and will
+be autogenerated by a call to $self->tt_template_name if not provided).  The return value will be a scalar
 reference to the output of the template.
 
+  package My::App::Browser
   sub myrunmode {
     my $self = shift;
 
-    return $self->tt_process('my_runmode.tmpl', { foo => 'bar' });
+    return $self->tt_process( 'Browser/myrunmode.tmpl', { foo => 'bar' } );
+  }
+ 
+  sub myrunmode2 {
+    my $self = shift;
+
+    return $self->tt_process( { foo => 'bar' } ); # will process template 'My/App/Browser/myrunmode2.tmpl'
   }
  
 
@@ -260,7 +424,8 @@ call to tt_process or tt_obj, then it will die with an error message.
 
 It is not a requirement to call this method, as the module will work without any
 configuration.  However, most will find it useful to set at least a path to the
-location of the template files.
+location of the template files ( or you can set the path later using the tt_include_path
+method).
 
 The following parameters are accepted:
 
@@ -271,6 +436,18 @@ The following parameters are accepted:
 This allows you to customize how the L<Template> object is created by providing a list of
 options that will be passed to the L<Template> constructor.  Please see the documentation
 for the L<Template> module for the exact syntax of the parameters, or see below for an example.
+
+=item TEMPLATE_NAME_GENERATOR
+
+This allows you to provide your own method for auto-generating the template filename.  It requires
+a reference to a function that will be passed the $self object as it's only parameter.  This function
+will be called everytime $self->tt_process is called without providing the filename of the template
+to process.  This can standardize the way templates are organized and structured by making the
+template filenames follow a predefined pattern.
+
+The default template filename generator uses the current module name, and the name of the calling
+function to generate a filename.  This means your templates are named by a combination of the
+module name, and the runmode.
 
 =back
 
@@ -324,11 +501,64 @@ the template is processed.
 This, like it's counterpart cgiapp_postrun, is called right after a template has been processed.
 It will be passed a scalar reference to the processed template.
 
+=head2 tt_template_name
+
+This method will generate a template name for you based on two pieces of information:  the
+method name of the caller, and the package name of the caller.  It allows you to consistently
+name your templates based on a directory hierarchy and naming scheme defined by the structure
+of the code.  This can simplify development and lead to more consistent, readable code.
+
+For example:
+
+ package My::App::Browser
+
+ sub view {
+   my $self = shift;
+
+   my $template = $self->tt_template_name; # returns 'My/App/Browser/view.tmpl'
+   return $self->tt_process($template, { var1 => param1 });
+ }
+
+To simplify things even more, tt_process automatically calls $self->tt_template_name for
+you if you do not pass a template name, so the above can be reduced to this:
+
+ package MyApp::Example
+
+ sub view {
+   my $self = shift;
+
+   return $self->tt_process({ var1 => param1 }); # process template 'MyApp/Example/view.tmpl'
+ }
+
+Since the path is generated based on the name of the module, you could place all of your templates
+in the same directory as your perl modules, and then pass @INC as your INCLUDE_PATH parameter.
+Whether that is actually a good idea is left up to the reader.
+
+ $self->tt_include_path(\@INC);
+
+
+=head2 tt_include_path
+
+This method will allow you to set the include path for the Template Toolkit object after
+the object has already been created.  Normally you set the INCLUDE_PATH option when creating
+the Template Toolkit object, but sometimes it can be useful to change this value after the
+object has already been created.  this method will allow you to do that without needing to
+create an entirely new Template Toolkit object.  This can be especially handy when using
+the Singleton support mentioned below, where a Template Toolkit object may persist across many request.
+It is important to note that a call to tt_include_path will change the INCLUDE_PATH for all
+subsequent calls to this object, until tt_include_path is called again.  So if you change the
+INCLUDE_PATH based on the user that is connecting to your site, then make sure you call
+tt_include_path on every request.
+
+  my $root = '/var/www/';
+  $self->tt_include_path( [$root.$ENV{SERVER_NAME}, $root.'default'] );
 
 
 =head1 EXAMPLE
 
 In a CGI::Application module:
+
+  package My::App
 
   use CGI::Application::Plugin::TT;
   use base qw(CGI::Application);
@@ -391,6 +621,90 @@ In a CGI::Application module:
     # return the template output
     return $self->tt_process('my_runmode.tmpl', \%params);
   }
+
+  sub my_otherrunmode {
+    my $self = shift;
+ 
+    my %params = (
+            foo => 'bar',
+    );
+ 
+    # Since we don't provide the name of the template to tt_process, it
+    # will be auto-generated by a call to $self->tt_template_name,
+    # which will result in a filename of 'Example/my_otherrunmode.tmpl'.
+    return $self->tt_process(\%params);
+  }
+
+
+=head1 SINGLETON SUPPORT
+
+Creating a Template Toolkit object can be an expensive operation if it needs to be done for every
+request.  This startup cost increases dramatically as the number of templates you use
+increases.  The reason for this is that when TT loads and parses a template, it
+generates actual perlcode to do the rendering of that template.  This means that the rendering of
+the template is extremely fast, but the initial parsing of the templates can be inefficient.  Even
+by using the builting caching mechanism that TT provides only writes the generated perl code to
+the filesystem.  The next time a TT object is created, it will need to load these templates from disk,
+and eval the sourcecode that they contain.
+
+So to improve the efficiency of Template Toolkit, we should keep the object (and hence all the compiled
+templates) in memory across multiple requests.  This means you only get hit with the startup cost
+the first time the TT object is created.
+
+All you need to do to use this module as a singleton is to call tt_config as a class method
+instead of as an object method.  All the same parameters can be used when calling tt_config
+as a class method.
+
+When creating the singleton, the Template Toolkit object will be saved in the namespace of the
+module that created it.  The singleton will also be inherited by any subclasses of
+this module.  So in effect this is not a traditional Singleton, since an instance of a Template
+Toolkit object is only shared by a module and it's children.  This allows you to still have different
+configurations for different CGI::Application modules if you require it.  If you want all of your
+CGI::Application applications to share the same Template Toolkit object, just create a Base class that
+calls tt_config to configure the plugin, and have all of your applications inherit from this Base class.
+
+
+=head1 SINGLETON EXAMPLE
+
+  package My::App;
+  
+  use base qw(CGI::Application);
+  use CGI::Application::Plugin::TT;
+  My::App->tt_config(
+              TEMPLATE_OPTIONS => {
+                        POST_CHOMP   => 1,
+              },
+  );
+ 
+  sub cgiapp_prerun {
+    my $self = shift;
+ 
+    # Set the INCLUDE_PATH (will change the INCLUDE_PATH for
+    # all subsequent requests as well, until tt_include_path is called
+    # again)
+    my $basedir = '/path/to/template/files/',
+    $self->tt_include_path( [$basedir.$ENV{SERVER_NAME}, $basedir.'default'] );
+  }
+ 
+  sub my_runmode {
+    my $self = shift;
+
+    # Will use the same TT object across multiple request
+    return $self->tt_process({ param1 => 'value1' });
+  }
+
+  package My::App::Subclass;
+
+  use base qw(My::App);
+
+  sub my_other_runmode {
+    my $self = shift;
+
+    # Uses the TT object from the parent class (My::App)
+    return $self->tt_process({ param2 => 'value2' });
+  }
+
+
 
 
 =head1 BUGS

@@ -7,7 +7,10 @@ WriteMakefile
           'NAME' => 'CGI::Application::Plugin::TT',
           'VERSION_FROM' => 'lib/CGI/Application/Plugin/TT.pm',
           'PREREQ_PM' => {
-                           'CGI::Application' => '3',
+                           'Scalar::Util' => 0,
+                           'CGI::Application' => '3.0',
+                           'File::Spec' => 0,
+                           'Class::ISA' => 0,
                            'Template' => '2.0'
                          }
         )
