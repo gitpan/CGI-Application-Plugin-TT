@@ -1,0 +1,22 @@
+Revision history for Perl extension CGI::Application::Plugin::TT.
+
+0.03  Sun Sep 19 18:13:03 EST 2004
+
+    - scrap CGI::Application::Plugin support for simple Exporter
+      system.
+    - Moved module to the CGI::Application::Plugin namespace.
+    - module no longer depends on inheritance, so just use'ing
+      the module will suffice to import the required methods
+      into the current class.
+
+0.02  Mon Jul 26 23:44:39 EST 2004
+
+    - add support for the new CGI::Application::Plugin base class.
+      This means the usage has changed.  Altering the inheritance
+      tree is no longer necesary, as you only need to use the module
+      and it will import the plugin methods into the callers
+      namespace automatically.  See the docs for more details...
+
+0.01  Sun Feb 15 16:10:39 EST 2004
+
+    - original version
