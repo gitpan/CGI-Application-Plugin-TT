@@ -2,27 +2,8 @@ package TestAppBasic;
 
 use strict;
 
-use CGI::Application;
-use CGI::Application::Plugin::TT;
-@TestAppBasic::ISA = qw(CGI::Application);
-
-sub cgiapp_init {
-    my $self = shift;
-
-    $self->tt_config(
-              TEMPLATE_OPTIONS => {
-                        INCLUDE_PATH => 't',
-                        POST_CHOMP   => 1,
-                        DEBUG => 1,
-              },
-    );
-}
-
-sub setup {
-    my $self = shift;
-    $self->start_mode('test_mode');
-    $self->run_modes(test_mode => 'test_mode' );
-}
+use TestAppBase;
+@TestAppBasic::ISA = qw(TestAppBase);
 
 sub test_mode {
     my $self = shift;
@@ -36,7 +17,6 @@ sub test_mode {
     };
 
     return $self->tt_process(\*DATA, $tt_vars);
-#    return $self->tt_process('invalid_template.tmpl', $tt_vars);
 }
 
 sub tt_pre_process {

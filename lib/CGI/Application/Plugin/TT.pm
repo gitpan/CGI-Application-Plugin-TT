@@ -18,7 +18,7 @@ require Exporter;
 );
 sub import { goto &Exporter::import }
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 ##############################################
 ###
@@ -190,7 +190,7 @@ sub tt_process {
   # set with tt_params
   my %params = ( %{ $self->tt_params() }, %$vars );
 
-  $self->tt_obj->process($file, \%params, \$html);
+  $self->tt_obj->process($file, \%params, \$html) || croak $self->tt_obj->error();
 
   # Call tt_post_process hook
   $self->tt_post_process(\$html) if $self->can('tt_post_process');

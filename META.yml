@@ -1,7 +1,8 @@
 --- #YAML:1.0
 name: CGI-Application-Plugin-TT
-version: 0.03
-author: Cees Hek <cees@crtconsulting.ca>
+version: 0.04
+author:
+  - Cees Hek <cees@crtconsulting.ca>
 abstract: |-
   Plugin that adds Template Toolkit support to CGI::Application
 license: perl
@@ -11,5 +12,5 @@ requires:
 provides:
   CGI::Application::Plugin::TT:
     file: lib/CGI/Application/Plugin/TT.pm
-    version: 0.03
-generated_by: Module::Build version 0.25
+    version: 0.04
+generated_by: Module::Build version 0.26
