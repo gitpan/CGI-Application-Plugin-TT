@@ -227,9 +227,10 @@ METHODS
 
 DEFAULT PARAMETERS
     By default, the TT plugin will automatically add a parameter 'c' to the
-    template that links to $self. This allows you to access any methods in
-    your CGI::Application module from within your template. This allows for
-    some powerful actions in your templates. For example, your templates
+    template that will return to your CGI::Application object $self. This
+    allows you to access any methods in your CGI::Application module that
+    you could normally call on $self from within your template. This allows
+    for some powerful actions in your templates. For example, your templates
     will be able to access query parameters, or if you use the
     CGI::Application::Plugin::Session module, you can access session
     parameters.
@@ -245,6 +246,13 @@ DEFAULT PARAMETERS
       [% c.prototype.define_javascript_functions %]
       <a href="#" onclick="javascript:[% c.prototype.visual_effect( 'Appear', 'extra_info' ) %] return false;">Extra Info</a>
       <div style="display: none" id="extra_info">Here is some more extra info</div>
+
+    With this extra flexibility comes some responsibilty as well. It could
+    lead down a dangerous path if you start making alterations to your
+    object from within the template. For example you could call c.header_add
+    to add new outgoing headers, but that is something that should be left
+    in your code, not in your template. Try to limit yourself to pulling in
+    information into your templates (like the session example above does).
 
 EXAMPLE
     In a CGI::Application module:

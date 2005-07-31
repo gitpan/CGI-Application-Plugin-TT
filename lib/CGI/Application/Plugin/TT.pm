@@ -37,7 +37,7 @@ sub import {
 
 }
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 ##############################################
 ###
@@ -249,7 +249,7 @@ sub tt_process {
     my %params = ( %{ $self->tt_params() }, %$vars );
 
     # Add c => $self in as a param for convenient access to sessions and such
-    $vars->{c} ||= $self;
+    $params{c} ||= $self;
 
     $self->tt_obj->process($file, \%params, \$html) || croak $self->tt_obj->error();
 
@@ -611,7 +611,8 @@ tt_include_path on every request.
 =head1 DEFAULT PARAMETERS
 
 By default, the TT plugin will automatically add a parameter 'c' to the template that
-links to $self.  This allows you to access any methods in your CGI::Application module
+will return to your CGI::Application object $self.  This allows you to access any
+methods in your CGI::Application module that you could normally call on $self
 from within your template.  This allows for some powerful actions in your templates.
 For example, your templates will be able to access query parameters, or if you use
 the CGI::Application::Plugin::Session module, you can access session parameters.
@@ -626,6 +627,12 @@ plugin, which gives easy access to the very powerful prototype.js JavaScript lib
   [% c.prototype.define_javascript_functions %]
   <a href="#" onclick="javascript:[% c.prototype.visual_effect( 'Appear', 'extra_info' ) %] return false;">Extra Info</a>
   <div style="display: none" id="extra_info">Here is some more extra info</div>
+
+With this extra flexibility comes some responsibilty as well.  It could lead down a
+dangerous path if you start making alterations to your object from within the template.
+For example you could call c.header_add to add new outgoing headers, but that is something
+that should be left in your code, not in your template.  Try to limit yourself to
+pulling in information into your templates (like the session example above does).
 
 
 =head1 EXAMPLE

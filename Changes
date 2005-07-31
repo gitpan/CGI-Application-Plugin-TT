@@ -1,11 +1,17 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
-0.07  
+0.08  Sun Jul 31 17:38:16 EDT 2005
+
+    - Made some small doc changes that I meant to put in the
+      last release.
+
+0.07  Sat Jul 30 9:18:46 EDT 2005
 
     - fixed Windows path bug in test suite (Emanuele Zeppieri)
     - Simplify the pod tests according to Test::Pod docs
     - Support the new callback hooks in CGI::Application 4.0
-    - Automatically add { c => $self } to template params (see docs)
+    - Automatically add { c => $self } to template params
+        (see docs under DEFAULT PARAMETERS)
     - minor doc cleanups
 
 0.06  Thu Feb  3 15:38:39 EST 2005
