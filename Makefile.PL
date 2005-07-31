@@ -8,7 +8,7 @@ WriteMakefile
           'VERSION_FROM' => 'lib/CGI/Application/Plugin/TT.pm',
           'PREREQ_PM' => {
                            'Scalar::Util' => 0,
-                           'CGI::Application' => '3.0',
+                           'CGI::Application' => '4.0',
                            'File::Spec' => 0,
                            'Class::ISA' => 0,
                            'Template' => '2.0'

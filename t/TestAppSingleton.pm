@@ -2,8 +2,7 @@ package TestAppSingleton;
 
 use strict;
 
-use CGI::Application;
-@TestAppSingleton::ISA = qw(CGI::Application);
+use base qw(CGI::Application);
 
 use CGI::Application::Plugin::TT;
 TestAppSingleton->tt_config(

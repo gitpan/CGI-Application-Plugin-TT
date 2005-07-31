@@ -1,7 +1,7 @@
 package CGI::Application::Plugin::TT;
 
 use Template 2.0;
-use CGI::Application 3.0;
+use CGI::Application 4.0;
 use Carp;
 use File::Spec ();
 use Scalar::Util ();
@@ -28,9 +28,16 @@ sub import {
         *{"${callpkg}::$sym"} = \&{$sym};
     }
     $callpkg->tt_config(@_) if @_;
+    if ($callpkg->isa('CGI::Application')) {
+        $callpkg->new_hook('tt_pre_process');
+        $callpkg->new_hook('tt_post_process');
+    } else {
+        warn "Calling package is not a CGI::Application module so not installing tt_pre_process and tt_post_process hooks.  If you are using \@ISA instead of use base to define your inheritance tree, make sure it is in a BEGIN { } clause";
+    }
+
 }
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 ##############################################
 ###
@@ -172,7 +179,7 @@ sub tt_clear_params {
 ###
 ##############################################
 #
-# Overridable method that is called just before
+# Sample method that is called just before
 # a Template is processed.
 # Useful for setting global template params.
 # It is passed the template filename and the hashref
@@ -183,7 +190,7 @@ sub tt_pre_process {
     my $file = shift;
     my $vars = shift;
 
-    # Nothing to pre process, yet!
+    # Do your pre-processing here
 }
 
 ##############################################
@@ -192,19 +199,24 @@ sub tt_pre_process {
 ###
 ##############################################
 #
-# Overridable method that is called just after
+# Sample method that is called just after
 # a Template is processed.
 # Useful for post processing the HTML.
 # It is passed a scalar reference to the HTML code.
 #
-# Note:  This can also be accomplished using the 
-#        cgiapp_postrun method
+# Note:  This could also be accomplished using the 
+#        cgiapp_postrun method, except that this
+#        method is called after every template is
+#        processed (you could process multiple
+#        templates in one request), whereas
+#        cgiapp_postrun is only called once after
+#        the runmode has completed.
 #
 sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
 
-    # Nothing to post process, yet!
+    # Do your post-procssing here
 }
 
 ##############################################
@@ -230,15 +242,20 @@ sub tt_process {
 
     # Call tt_pre_process hook
     $self->tt_pre_process($file, $vars) if $self->can('tt_pre_process');
+    $self->call_hook('tt_pre_process', $file, $vars);
 
     # Include any parameters that may have been
     # set with tt_params
     my %params = ( %{ $self->tt_params() }, %$vars );
 
+    # Add c => $self in as a param for convenient access to sessions and such
+    $vars->{c} ||= $self;
+
     $self->tt_obj->process($file, \%params, \$html) || croak $self->tt_obj->error();
 
     # Call tt_post_process hook
     $self->tt_post_process(\$html) if $self->can('tt_post_process');
+    $self->call_hook('tt_post_process', \$html);
 
     return \$html;
 }
@@ -419,13 +436,22 @@ reference to the output of the template.
 
 This method can be used to customize the functionality of the CGI::Application::Plugin::TT module,
 and the Template Toolkit module that it wraps.  The recommended place to call C<tt_config>
-is in the C<cgiapp_init> stage of L<CGI::Application>.  If this method is called after a
+is as a class method on the global scope of your module (See SINGLETON SUPPORT for an explaination
+of why this is a good idea).  If this method is called after a
 call to tt_process or tt_obj, then it will die with an error message.
 
 It is not a requirement to call this method, as the module will work without any
 configuration.  However, most will find it useful to set at least a path to the
 location of the template files ( or you can set the path later using the tt_include_path
 method).
+
+    our $TEMPLATE_OPTIONS = {
+        COMPILE_DIR => '/tmp/tt_cache',
+        DEFAULT     => 'notfound.tmpl',
+        PRE_PROCESS => 'defaults.tmpl',
+    };
+    __PACKAGE__->tt_config( TEMPLATE_OPTIONS => $TEMPLATE_OPTIONS );
+
 
 The following parameters are accepted:
 
@@ -482,7 +508,7 @@ the user's name automatically if they are logged in.
     $self->tt_params(username => $ENV{REMOTE_USER}) if $ENV{REMOTE_USER};
   }
 
-=head2 tt_params_clear
+=head2 tt_clear_params
 
 This method will clear all the currently stored parameters that have been set with
 tt_params.
@@ -491,15 +517,43 @@ tt_params.
 =head2 tt_pre_process
 
 This is an overridable method that works in the spirit of cgiapp_prerun.  The method will
-be called just before a template is processed, and will be passed the same parameters
-that were passed to tt_process (ie the template filename, and a hashref of template parameters).
-It can be used to make last minute changes to the template, or the parameters before
-the template is processed.
+be called just before a template is processed, and will be passed the template filename,
+and a hashref of template parameters.  It can be used to make last minute changes to the
+template, or the parameters before the template is processed.
+
+  sub tt_pre_process {
+    my ($self, $file, $vars) = @_;
+    $vars->{user} = $ENV{REMOTE_USER};
+    return;
+  }
+
+If you are using CGI::Application 4.0 or greater, you can also register this as a callback.
+
+  __PACKAGE__->add_callback('tt_pre_process', sub {
+    my ($self, $file, $vars) = @_;
+    $vars->{user} = $ENV{REMOTE_USER};
+    return;
+  });
 
 =head2 tt_post_process
 
 This, like it's counterpart cgiapp_postrun, is called right after a template has been processed.
 It will be passed a scalar reference to the processed template.
+
+  sub tt_post_process {
+    my ($self, $htmlref) = shift;
+
+    require HTML::Clean;
+    my $h = HTML::Clean->new($htmlref);
+    $h->strip;
+    my $newref = $h->data;
+    $$htmlref = $$newref;
+    return;
+  }
+
+If you are using CGI::Application 4.0 or greater, you can also register this as a callback (See
+tt_pre_process for an example of how to use it).
+
 
 =head2 tt_template_name
 
@@ -552,6 +606,26 @@ tt_include_path on every request.
 
   my $root = '/var/www/';
   $self->tt_include_path( [$root.$ENV{SERVER_NAME}, $root.'default'] );
+
+
+=head1 DEFAULT PARAMETERS
+
+By default, the TT plugin will automatically add a parameter 'c' to the template that
+links to $self.  This allows you to access any methods in your CGI::Application module
+from within your template.  This allows for some powerful actions in your templates.
+For example, your templates will be able to access query parameters, or if you use
+the CGI::Application::Plugin::Session module, you can access session parameters.
+
+ Hello [% c.session.param('username') || 'Anonymous User' %]
+
+ <a href="[% c.query.self_url %]">Reload this page</a>
+
+Another useful plugin that can use this feature is the CGI::Application::Plugin::HTMLPrototype
+plugin, which gives easy access to the very powerful prototype.js JavaScript library.
+
+  [% c.prototype.define_javascript_functions %]
+  <a href="#" onclick="javascript:[% c.prototype.visual_effect( 'Appear', 'extra_info' ) %] return false;">Extra Info</a>
+  <div style="display: none" id="extra_info">Here is some more extra info</div>
 
 
 =head1 EXAMPLE
@@ -705,27 +779,31 @@ calls tt_config to configure the plugin, and have all of your applications inher
   }
 
 
+=head1 AUTHOR
+
+Cees Hek <ceeshek@gmail.com>
 
 
 =head1 BUGS
 
-This is alpha software and as such, the features and interface
-are subject to change.  So please check the Changes file when upgrading.
+Please report any bugs or feature requests to
+C<bug-cgi-application-plugin-tt@rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org>.  I will be notified, and then you'll automatically
+be notified of progress on your bug as I make changes.
 
+
+=head1 CONTRIBUTING
+
+Patches, questions and feedback are welcome.
 
 =head1 SEE ALSO
 
 L<CGI::Application>, L<Template>, perl(1)
 
 
-=head1 AUTHOR
-
-Cees Hek <cees@crtconsulting.ca>
-
-
 =head1 LICENSE
 
-Copyright (C) 2004 Cees Hek <cees@crtconsulting.ca>
+Copyright (C) 2005 Cees Hek, All Rights Reserved.
 
 This library is free software. You can modify and or distribute it under the same terms as Perl itself.
 

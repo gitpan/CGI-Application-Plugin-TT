@@ -1,5 +1,4 @@
-use Test::More tests => 13;
-BEGIN { use_ok('CGI::Application::Plugin::TT') };
+use Test::More tests => 12;
 
 use lib './t';
 use strict;
@@ -15,7 +14,7 @@ like($t1_output, qr/:template param hash:/, 'template parameter hash');
 like($t1_output, qr/:template param hashref:/, 'template parameter hashref');
 like($t1_output, qr/:pre_process param:/, 'pre process parameter');
 like($t1_output, qr/:post_process param:/, 'post process parameter');
-like($t1_output, qr/:TestAppTName\/test_mode\.tmpl:/, 'template name ok');
+like($t1_output, qr/:TestAppTName[\/\\]test_mode\.tmpl:/, 'template name ok');
 
 
 my $t2_obj = TestAppTName::CustName->new();
@@ -26,5 +25,5 @@ like($t2_output, qr/:template param hash:/, 'template parameter hash');
 like($t2_output, qr/:template param hashref:/, 'template parameter hashref');
 like($t2_output, qr/:pre_process param:/, 'pre process parameter');
 like($t2_output, qr/:post_process param:/, 'post process parameter');
-like($t2_output, qr/:TestAppTName\/test\.tmpl:/, 'template name ok');
+like($t2_output, qr/:TestAppTName[\/\\]test\.tmpl:/, 'template name ok');
 

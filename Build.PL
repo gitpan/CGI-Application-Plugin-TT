@@ -4,7 +4,7 @@ Module::Build->new(
     module_name => 'CGI::Application::Plugin::TT',
     license => 'perl',
     requires => {
-        'CGI::Application' => '3.0',
+        'CGI::Application' => '4.0',
         'Template' => '2.0',
         'Scalar::Util' => 0,
         'File::Spec' => 0,

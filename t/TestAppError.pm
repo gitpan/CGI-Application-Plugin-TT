@@ -2,8 +2,7 @@ package TestAppError;
 
 use strict;
 
-use TestAppBase;
-@TestAppError::ISA = qw(TestAppBase);
+use base qw(TestAppBase);
 
 sub test_mode {
     my $self = shift;

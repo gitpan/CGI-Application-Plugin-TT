@@ -2,9 +2,8 @@ package TestAppBase;
 
 use strict;
 
-use CGI::Application;
+use base qw(CGI::Application);
 use CGI::Application::Plugin::TT;
-@TestAppBase::ISA = qw(CGI::Application);
 
 sub cgiapp_init {
     my $self = shift;

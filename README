@@ -55,14 +55,22 @@ METHODS
   tt_config
     This method can be used to customize the functionality of the
     CGI::Application::Plugin::TT module, and the Template Toolkit module
-    that it wraps. The recommended place to call "tt_config" is in the
-    "cgiapp_init" stage of CGI::Application. If this method is called after
+    that it wraps. The recommended place to call "tt_config" is as a class
+    method on the global scope of your module (See SINGLETON SUPPORT for an
+    explaination of why this is a good idea). If this method is called after
     a call to tt_process or tt_obj, then it will die with an error message.
 
     It is not a requirement to call this method, as the module will work
     without any configuration. However, most will find it useful to set at
     least a path to the location of the template files ( or you can set the
     path later using the tt_include_path method).
+
+        our $TEMPLATE_OPTIONS = {
+            COMPILE_DIR => '/tmp/tt_cache',
+            DEFAULT     => 'notfound.tmpl',
+            PRE_PROCESS => 'defaults.tmpl',
+        };
+        __PACKAGE__->tt_config( TEMPLATE_OPTIONS => $TEMPLATE_OPTIONS );
 
     The following parameters are accepted:
 
@@ -116,22 +124,50 @@ METHODS
         $self->tt_params(username => $ENV{REMOTE_USER}) if $ENV{REMOTE_USER};
       }
 
-  tt_params_clear
+  tt_clear_params
     This method will clear all the currently stored parameters that have
     been set with tt_params.
 
   tt_pre_process
     This is an overridable method that works in the spirit of cgiapp_prerun.
     The method will be called just before a template is processed, and will
-    be passed the same parameters that were passed to tt_process (ie the
-    template filename, and a hashref of template parameters). It can be used
-    to make last minute changes to the template, or the parameters before
-    the template is processed.
+    be passed the template filename, and a hashref of template parameters.
+    It can be used to make last minute changes to the template, or the
+    parameters before the template is processed.
+
+      sub tt_pre_process {
+        my ($self, $file, $vars) = @_;
+        $vars->{user} = $ENV{REMOTE_USER};
+        return;
+      }
+
+    If you are using CGI::Application 4.0 or greater, you can also register
+    this as a callback.
+
+      __PACKAGE__->add_callback('tt_pre_process', sub {
+        my ($self, $file, $vars) = @_;
+        $vars->{user} = $ENV{REMOTE_USER};
+        return;
+      });
 
   tt_post_process
     This, like it's counterpart cgiapp_postrun, is called right after a
     template has been processed. It will be passed a scalar reference to the
     processed template.
+
+      sub tt_post_process {
+        my ($self, $htmlref) = shift;
+
+        require HTML::Clean;
+        my $h = HTML::Clean->new($htmlref);
+        $h->strip;
+        my $newref = $h->data;
+        $$htmlref = $$newref;
+        return;
+      }
+
+    If you are using CGI::Application 4.0 or greater, you can also register
+    this as a callback (See tt_pre_process for an example of how to use it).
 
   tt_template_name
     This method will generate a template name for you based on two pieces of
@@ -188,6 +224,27 @@ METHODS
 
       my $root = '/var/www/';
       $self->tt_include_path( [$root.$ENV{SERVER_NAME}, $root.'default'] );
+
+DEFAULT PARAMETERS
+    By default, the TT plugin will automatically add a parameter 'c' to the
+    template that links to $self. This allows you to access any methods in
+    your CGI::Application module from within your template. This allows for
+    some powerful actions in your templates. For example, your templates
+    will be able to access query parameters, or if you use the
+    CGI::Application::Plugin::Session module, you can access session
+    parameters.
+
+     Hello [% c.session.param('username') || 'Anonymous User' %]
+
+     <a href="[% c.query.self_url %]">Reload this page</a>
+
+    Another useful plugin that can use this feature is the
+    CGI::Application::Plugin::HTMLPrototype plugin, which gives easy access
+    to the very powerful prototype.js JavaScript library.
+
+      [% c.prototype.define_javascript_functions %]
+      <a href="#" onclick="javascript:[% c.prototype.visual_effect( 'Appear', 'extra_info' ) %] return false;">Extra Info</a>
+      <div style="display: none" id="extra_info">Here is some more extra info</div>
 
 EXAMPLE
     In a CGI::Application module:
@@ -339,18 +396,23 @@ SINGLETON EXAMPLE
         return $self->tt_process({ param2 => 'value2' });
       }
 
+AUTHOR
+    Cees Hek <ceeshek@gmail.com>
+
 BUGS
-    This is alpha software and as such, the features and interface are
-    subject to change. So please check the Changes file when upgrading.
+    Please report any bugs or feature requests to
+    "bug-cgi-application-plugin-tt@rt.cpan.org", or through the web
+    interface at <http://rt.cpan.org>. I will be notified, and then you'll
+    automatically be notified of progress on your bug as I make changes.
+
+CONTRIBUTING
+    Patches, questions and feedback are welcome.
 
 SEE ALSO
     CGI::Application, Template, perl(1)
 
-AUTHOR
-    Cees Hek <cees@crtconsulting.ca>
-
 LICENSE
-    Copyright (C) 2004 Cees Hek <cees@crtconsulting.ca>
+    Copyright (C) 2005 Cees Hek, All Rights Reserved.
 
     This library is free software. You can modify and or distribute it under
     the same terms as Perl itself.

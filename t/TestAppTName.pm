@@ -2,8 +2,7 @@ package TestAppTName;
 
 use strict;
 
-use TestAppBase;
-@TestAppTName::ISA = qw(TestAppBase);
+use base qw(TestAppBase);
 
 sub test_mode {
     my $self = shift;

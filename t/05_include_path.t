@@ -1,5 +1,4 @@
 use Test::More;
-BEGIN { use_ok('CGI::Application::Plugin::TT') };
 
 use lib './t';
 use strict;

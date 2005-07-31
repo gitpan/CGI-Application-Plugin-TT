@@ -2,8 +2,7 @@ package TestAppIncludePath;
 
 use strict;
 
-use CGI::Application;
-@TestAppIncludePath::ISA = qw(CGI::Application);
+use base qw(CGI::Application);
 
 use CGI::Application::Plugin::TT (
               TEMPLATE_OPTIONS => {
