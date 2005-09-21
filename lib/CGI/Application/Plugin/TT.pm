@@ -32,12 +32,12 @@ sub import {
         $callpkg->new_hook('tt_pre_process');
         $callpkg->new_hook('tt_post_process');
     } else {
-        warn "Calling package is not a CGI::Application module so not installing tt_pre_process and tt_post_process hooks.  If you are using \@ISA instead of use base to define your inheritance tree, make sure it is in a BEGIN { } clause";
+        warn "Calling package is not a CGI::Application module so not installing tt_pre_process and tt_post_process hooks.  If you are using \@ISA instead of 'use base', make sure it is in a BEGIN { } block, and make sure these statements appear before the plugin is loaded";
     }
 
 }
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 ##############################################
 ###
@@ -204,7 +204,7 @@ sub tt_pre_process {
 # Useful for post processing the HTML.
 # It is passed a scalar reference to the HTML code.
 #
-# Note:  This could also be accomplished using the 
+# Note:  This could also be accomplished using the
 #        cgiapp_postrun method, except that this
 #        method is called after every template is
 #        processed (you could process multiple
@@ -216,7 +216,7 @@ sub tt_post_process {
     my $self    = shift;
     my $htmlref = shift;
 
-    # Do your post-procssing here
+    # Do your post-processing here
 }
 
 ##############################################
@@ -239,6 +239,17 @@ sub tt_process {
         $file = $self->tt_template_name;
     }
     $vars ||= {};
+    my $template_name = $file;
+
+    # Call the load_tmpl hook that is part of CGI::Application
+    if (UNIVERSAL::can($self, 'call_hook')) {
+        $self->call_hook(
+            'load_tmpl',
+            {}, # template options are ignored
+            $vars,
+            $file,
+        );
+    }
 
     # Call tt_pre_process hook
     $self->tt_pre_process($file, $vars) if $self->can('tt_pre_process');
@@ -256,6 +267,8 @@ sub tt_process {
     # Call tt_post_process hook
     $self->tt_post_process(\$html) if $self->can('tt_post_process');
     $self->call_hook('tt_post_process', \$html);
+
+    _tt_add_devpopup_info($self, $template_name, \%params);
 
     return \$html;
 }
@@ -370,6 +383,45 @@ sub _get_object_or_options {
     return;
 }
 
+##############################################
+###
+###   _tt_add_devpopup_info
+###
+##############################################
+#
+# This method will look to see if the devpopup
+# plugin is being used, and will display all the
+# parameters that were passed to the template.
+#
+sub _tt_add_devpopup_info {
+    my $self = shift;
+    my $name = shift;
+    my $params = shift;
+
+    return unless UNIVERSAL::can($self, 'devpopup');
+
+    my %params = %$params;
+    foreach my $key (keys %params) {
+        if (my $class = Scalar::Util::blessed($params{$key})) {
+            $params{$key} = "Object:$class";
+        }
+    }
+
+    require Data::Dumper;
+    my $dumper = Data::Dumper->new([\%params]);
+    $dumper->Varname('Params');
+    $dumper->Indent(2);
+    my $dump = $dumper->Dump();
+
+    $self->devpopup->add_report(
+        title   => "TT params for $name",
+        summary => "All template parameters passed to template $name",
+        report  => qq{<div style="font-size: 80%"><pre>$dump</pre></div>},
+    );
+
+    return;
+}
+
 
 1;
 __END__
@@ -436,7 +488,7 @@ reference to the output of the template.
 
 This method can be used to customize the functionality of the CGI::Application::Plugin::TT module,
 and the Template Toolkit module that it wraps.  The recommended place to call C<tt_config>
-is as a class method on the global scope of your module (See SINGLETON SUPPORT for an explaination
+is as a class method in the global scope of your module (See SINGLETON SUPPORT for an explanation
 of why this is a good idea).  If this method is called after a
 call to tt_process or tt_obj, then it will die with an error message.
 
@@ -803,6 +855,7 @@ be notified of progress on your bug as I make changes.
 
 Patches, questions and feedback are welcome.
 
+
 =head1 SEE ALSO
 
 L<CGI::Application>, L<Template>, perl(1)
@@ -812,7 +865,8 @@ L<CGI::Application>, L<Template>, perl(1)
 
 Copyright (C) 2005 Cees Hek, All Rights Reserved.
 
-This library is free software. You can modify and or distribute it under the same terms as Perl itself.
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =cut
 

@@ -11,7 +11,6 @@ Module::Build->new(
         'Class::ISA' => 0,
     },
     create_makefile_pl => 'traditional',
-    create_readme => 1,
     dist_author => 'Cees Hek <cees@crtconsulting.ca>',
     dist_abstract => 'Plugin that adds Template Toolkit support to CGI::Application',
 )->create_build_script;

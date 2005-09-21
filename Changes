@@ -1,5 +1,11 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
+0.09  Wed Sep 21 15:59:03 EDT 2005
+
+    - added support for the load_tmpl hook in CGI::App
+    - added support for the DevPopup plugin
+    - added pod coverage tests
+
 0.08  Sun Jul 31 17:38:16 EDT 2005
 
     - Made some small doc changes that I meant to put in the
