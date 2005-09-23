@@ -10,6 +10,9 @@ Module::Build->new(
         'File::Spec' => 0,
         'Class::ISA' => 0,
     },
+    recommends => {
+        'CGI::Application::Plugin::DevPopup' => 0,
+    },
     create_makefile_pl => 'traditional',
     dist_author => 'Cees Hek <cees@crtconsulting.ca>',
     dist_abstract => 'Plugin that adds Template Toolkit support to CGI::Application',

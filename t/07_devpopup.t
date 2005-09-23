@@ -3,13 +3,16 @@ use Test::More;
 use lib './t';
 use strict;
 
-eval {
-  require CGI::Application::Plugin::DevPopup;
-};
+BEGIN {
+    $ENV{CAP_DEVPOPUP_EXEC} = 1;
+    eval {
+        require CGI::Application::Plugin::DevPopup;
+    };
 
-if ($@) {
-  plan skip_all => "CGI::Application::Plugin::DevPopup required for these tests";
-  exit;
+    if ($@) {
+        plan skip_all => "CGI::Application::Plugin::DevPopup required for these tests";
+        exit;
+    }
 }
 
 plan tests => 2;
