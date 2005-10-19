@@ -1,12 +1,6 @@
+use Test::More;
 eval "use Test::Pod::Coverage";
-if ($@) {
-    print "1..0 # Skip Test::Pod::Coverage not installed\n";
-    exit;
-} 
+plan skip_all => "Test::Pod::Coverage required for testing pod coverage" if $@;
 
-my $ARGS = {
-    also_private    => [],
-    trustme	    => [],
-};
-
-all_pod_coverage_ok( $ARGS );
+plan tests => 1;
+pod_coverage_ok( "CGI::Application::Plugin::TT");

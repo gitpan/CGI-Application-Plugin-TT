@@ -1,5 +1,10 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
+1.00  Wed Oct 19 14:11:22 EDT 2005
+
+    - added support for tt_include_path to return the
+      current value of INCLUDE_PATH
+
 0.10  Fri Sep 23 08:58:34 EDT 2005
 
     - fix tests for DevPopup so it doesn't fail if it is not

@@ -13,7 +13,7 @@ if ($@) {
   exit;
 }
 
-plan tests => 4;
+plan tests => 5;
 
 $ENV{CGI_APP_RETURN_ONLY} = 1;
 
@@ -31,4 +31,6 @@ my $t2_output = $t2_obj->run();
 
 like($t2_output, qr/include path: t\/include2/, 'include path second time');
 like($t2_output, qr/template dir: include2/, 'template dir second time');
+
+is_deeply($t1_obj->tt_include_path, [qw[t/include2]],'returns current paths');
 

@@ -54,5 +54,20 @@ sub cgiapp_init {
     );
 }
 
+package TestAppTName::NoVars;
+
+use strict;
+
+@TestAppTName::NoVars::ISA = qw(TestAppTName);
+
+sub test_mode {
+    my $self = shift;
+
+    $self->tt_params(template_param_hash => 'template param hash');
+    $self->tt_params({template_param_hashref => 'template param hashref'});
+
+    return $self->tt_process('TestAppTName/test_mode.tmpl');
+}
+
 
 1;

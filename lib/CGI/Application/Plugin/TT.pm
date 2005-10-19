@@ -37,7 +37,7 @@ sub import {
 
 }
 
-$VERSION = '0.10';
+$VERSION = '1.00';
 
 ##############################################
 ###
@@ -234,7 +234,7 @@ sub tt_process {
     my $vars = shift;
     my $html = '';
 
-    if (! defined($vars) && Scalar::Util::reftype($file) eq 'HASH') {
+    if (! defined($vars) && (Scalar::Util::reftype($file)||'') eq 'HASH') {
         $vars = $file;
         $file = $self->tt_template_name;
     }
@@ -285,6 +285,7 @@ sub tt_process {
 sub tt_include_path {
     my $self = shift;
 
+    return $self->tt_obj->context->load_templates->[0]->include_path unless(@_);
     $self->tt_obj->context->load_templates->[0]->include_path(ref($_[0]) ? $_[0] : [@_]);
 
     return;
@@ -648,7 +649,7 @@ Whether that is actually a good idea is left up to the reader.
 This method will allow you to set the include path for the Template Toolkit object after
 the object has already been created.  Normally you set the INCLUDE_PATH option when creating
 the Template Toolkit object, but sometimes it can be useful to change this value after the
-object has already been created.  this method will allow you to do that without needing to
+object has already been created.  This method will allow you to do that without needing to
 create an entirely new Template Toolkit object.  This can be especially handy when using
 the Singleton support mentioned below, where a Template Toolkit object may persist across many request.
 It is important to note that a call to tt_include_path will change the INCLUDE_PATH for all
@@ -659,6 +660,8 @@ tt_include_path on every request.
   my $root = '/var/www/';
   $self->tt_include_path( [$root.$ENV{SERVER_NAME}, $root.'default'] );
 
+When called with no parameters tt_include_path returns an arrayref containing
+the current INCLUDE_PATH.
 
 =head1 DEFAULT PARAMETERS
 
