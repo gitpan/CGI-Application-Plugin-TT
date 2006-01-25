@@ -9,6 +9,8 @@ use Scalar::Util ();
 use strict;
 use vars qw($VERSION @EXPORT);
 
+$VERSION = '1.01';
+
 require Exporter;
 
 @EXPORT = qw(
@@ -36,8 +38,6 @@ sub import {
     }
 
 }
-
-$VERSION = '1.00';
 
 ##############################################
 ###
@@ -234,6 +234,8 @@ sub tt_process {
     my $vars = shift;
     my $html = '';
 
+    my $can_call_hook = UNIVERSAL::can($self, 'call_hook') ? 1 : 0;
+
     if (! defined($vars) && (Scalar::Util::reftype($file)||'') eq 'HASH') {
         $vars = $file;
         $file = $self->tt_template_name;
@@ -242,18 +244,16 @@ sub tt_process {
     my $template_name = $file;
 
     # Call the load_tmpl hook that is part of CGI::Application
-    if (UNIVERSAL::can($self, 'call_hook')) {
-        $self->call_hook(
-            'load_tmpl',
-            {}, # template options are ignored
-            $vars,
-            $file,
-        );
-    }
+    $self->call_hook(
+        'load_tmpl',
+        {}, # template options are ignored
+        $vars,
+        $file,
+    ) if $can_call_hook;
 
     # Call tt_pre_process hook
     $self->tt_pre_process($file, $vars) if $self->can('tt_pre_process');
-    $self->call_hook('tt_pre_process', $file, $vars);
+    $self->call_hook('tt_pre_process', $file, $vars) if $can_call_hook;
 
     # Include any parameters that may have been
     # set with tt_params
@@ -266,7 +266,7 @@ sub tt_process {
 
     # Call tt_post_process hook
     $self->tt_post_process(\$html) if $self->can('tt_post_process');
-    $self->call_hook('tt_post_process', \$html);
+    $self->call_hook('tt_post_process', \$html) if $can_call_hook;
 
     _tt_add_devpopup_info($self, $template_name, \%params);
 
@@ -443,8 +443,8 @@ CGI::Application::Plugin::TT - Add Template Toolkit support to CGI::Application
    my %params = {
                  email       => 'email@company.com',
                  menu        => [
-                                 { title => 'Home',     href => '/home.html',
-                                   title => 'Download', href => '/download.html', },
+                                 { title => 'Home',     href => '/home.html' },
+                                 { title => 'Download', href => '/download.html' },
                                 ],
                  session_obj => $self->session,
    };

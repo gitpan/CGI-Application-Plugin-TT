@@ -1,5 +1,11 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
+1.01  Wed Jan 25 16:00:38 EST 2006
+
+    - Fix doc error in synopsis (Jonathan Anderson)
+    - Before calling 'call_hook' make sure it exists
+    - Update pod coverage tests
+
 1.00  Wed Oct 19 14:11:22 EDT 2005
 
     - added support for tt_include_path to return the
