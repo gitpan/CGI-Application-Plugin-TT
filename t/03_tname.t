@@ -1,4 +1,4 @@
-use Test::More tests => 17;
+use Test::More tests => 20;
 
 use lib './t';
 use strict;
@@ -36,4 +36,12 @@ my $t3_output = $t3_obj->run();
 like($t3_output, qr/file: test_mode\.tmpl/, 'correct template file');
 like($t3_output, qr/:pre_process param:/, 'pre process parameter');
 like($t3_output, qr/:post_process param:/, 'post process parameter');
+
+
+my $t4_obj = TestAppTName::NoNameNoVars->new();
+my $t4_output = $t4_obj->run();
+
+like($t4_output, qr/file: test_mode\.tmpl/, 'correct template file');
+like($t4_output, qr/:pre_process param:/, 'pre process parameter');
+like($t4_output, qr/:post_process param:/, 'post process parameter');
 
