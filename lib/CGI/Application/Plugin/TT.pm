@@ -9,7 +9,7 @@ use Scalar::Util ();
 use strict;
 use vars qw($VERSION @EXPORT);
 
-$VERSION = '1.02';
+$VERSION = '1.03';
 
 require Exporter;
 
@@ -308,7 +308,7 @@ sub tt_template_name {
     my ($tt, $options, $frompkg) = _get_object_or_options($self);
 
     my $func = $options->{TEMPLATE_NAME_GENERATOR} || \&__tt_template_name;
-    return $self->$func;
+    return $self->$func(@_);
 }
 
 ##############################################
@@ -328,7 +328,8 @@ sub tt_template_name {
 #   generates:  My/Module/my_function.tmpl
 #
 sub __tt_template_name {
-    my $self = shift;
+    my $self    = shift;
+    my $uplevel = shift || 0;
 
     # the directory is based on the object's package name
     my $dir = File::Spec->catdir(split(/::/, ref($self)));
@@ -336,11 +337,11 @@ sub __tt_template_name {
     #my $dir = $1;
 
     # the filename is the method name of the caller
-    (caller(2))[3] =~ /([^:]+)$/;
+    (caller(2+$uplevel))[3] =~ /([^:]+)$/;
     my $name = $1;
     if ($name eq 'tt_process') {
         # we were called from tt_process, so go back once more on the caller stack
-        (caller(3))[3] =~ /([^:]+)$/;
+        (caller(3+$uplevel))[3] =~ /([^:]+)$/;
         $name = $1;
     }
     return File::Spec->catfile($dir, $name.'.tmpl');
@@ -617,14 +618,26 @@ method name of the caller, and the package name of the caller.  It allows you to
 name your templates based on a directory hierarchy and naming scheme defined by the structure
 of the code.  This can simplify development and lead to more consistent, readable code.
 
+If you do not want the template to be named after the method that called
+tt_template_name, you can pass in an integer, and the method used to generate
+the template name will be that many levels above the caller.  It defaults to
+zero.
+
 For example:
 
  package My::App::Browser
 
+ sub dummy_call {
+   my $self = shift;
+   return $self->tt_template_name(1); # parent callers name
+ }
+
  sub view {
    my $self = shift;
+   my $template;
 
-   my $template = $self->tt_template_name; # returns 'My/App/Browser/view.tmpl'
+   $template = $self->tt_template_name; # returns 'My/App/Browser/view.tmpl'
+   $template = $self->dummy_call;  # also returns 'My/App/Browser/view.tmpl'
    return $self->tt_process($template, { var1 => param1 });
  }
 

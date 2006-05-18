@@ -85,4 +85,34 @@ sub test_mode {
     return $self->tt_process;
 }
 
+package TestAppTName::UpLevel;
+
+use strict;
+
+@TestAppTName::UpLevel::ISA = qw(TestAppTName);
+
+sub test_mode {
+    my $self = shift;
+
+    $self->tt_params(template_param_hash => 'template param hash');
+    $self->tt_params({template_param_hashref => 'template param hashref'});
+
+    my $tt_vars = {
+                    template_var => 'template param',
+                    template_name => $self->call_tt_template_name,
+    };
+
+    return $self->call_tt_process($tt_vars);
+}
+
+sub call_tt_process {
+    my $self = shift;
+    return $self->tt_process($self->tt_template_name(1), @_);
+}
+
+sub call_tt_template_name {
+    my $self = shift;
+    return $self->tt_template_name(1);
+}
+
 1;

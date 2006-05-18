@@ -2,16 +2,16 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-          'PL_FILES' => {},
-          'INSTALLDIRS' => 'site',
           'NAME' => 'CGI::Application::Plugin::TT',
           'VERSION_FROM' => 'lib/CGI/Application/Plugin/TT.pm',
           'PREREQ_PM' => {
-                           'Scalar::Util' => 0,
                            'CGI::Application' => '4.0',
-                           'File::Spec' => 0,
-                           'Class::ISA' => 0,
+                           'Class::ISA' => '0',
+                           'File::Spec' => '0',
+                           'Scalar::Util' => '0',
                            'Template' => '2.0'
-                         }
+                         },
+          'INSTALLDIRS' => 'site',
+          'PL_FILES' => {}
         )
 ;

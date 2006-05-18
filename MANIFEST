@@ -29,3 +29,4 @@ t/TestAppTName.pm
 t/TestAppTName/test.tmpl
 t/TestAppTName/test_mode.tmpl
 t/TestAppTName/NoNameNoVars/test_mode.tmpl
+t/TestAppTName/UpLevel/test_mode.tmpl

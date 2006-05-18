@@ -1,4 +1,4 @@
-use Test::More tests => 20;
+use Test::More tests => 27;
 
 use lib './t';
 use strict;
@@ -44,4 +44,16 @@ my $t4_output = $t4_obj->run();
 like($t4_output, qr/file: test_mode\.tmpl/, 'correct template file');
 like($t4_output, qr/:pre_process param:/, 'pre process parameter');
 like($t4_output, qr/:post_process param:/, 'post process parameter');
+
+my $t5_obj = TestAppTName::UpLevel->new();
+my $t5_output = $t5_obj->run();
+
+like($t5_output, qr/file: test_mode\.tmpl/, 'correct template file');
+like($t5_output, qr/:template param:/, 'template parameter');
+like($t5_output, qr/:template param hash:/, 'template parameter hash');
+like($t5_output, qr/:template param hashref:/, 'template parameter hashref');
+like($t5_output, qr/:pre_process param:/, 'pre process parameter');
+like($t5_output, qr/:post_process param:/, 'post process parameter');
+like($t5_output, qr/:TestAppTName[\/\\]UpLevel[\/\\]test_mode\.tmpl:/, 'template name ok');
+
 
