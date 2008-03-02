@@ -13,6 +13,7 @@ t/05_include_path.t
 t/06_callback.t
 t/07_devpopup.t
 t/08_load_tmpl.t
+t/09_precompile_dir.t
 t/98_pod.t
 t/99_pod_coverage.t
 t/include1/TestAppIncludePath/test_mode.tmpl
@@ -24,6 +25,7 @@ t/TestAppDevPopup.pm
 t/TestAppError.pm
 t/TestAppIncludePath.pm
 t/TestAppLoadtmpl.pm
+t/TestAppPrecompile.pm
 t/TestAppSingleton.pm
 t/TestAppTName.pm
 t/TestAppTName/test.tmpl

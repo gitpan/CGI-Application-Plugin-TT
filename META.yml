@@ -1,6 +1,6 @@
 ---
 name: CGI-Application-Plugin-TT
-version: 1.03
+version: 1.04
 author:
   - 'Cees Hek <cees@crtconsulting.ca>'
 abstract: Plugin that adds Template Toolkit support to CGI::Application
@@ -16,5 +16,5 @@ recommends:
 provides:
   CGI::Application::Plugin::TT:
     file: lib/CGI/Application/Plugin/TT.pm
-    version: 1.03
+    version: 1.04
 generated_by: Module::Build version 0.2612

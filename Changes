@@ -1,5 +1,13 @@
 Revision history for Perl extension CGI::Application::Plugin::TT.
 
+1.04  Wed Nov  1 07:08:50 EST 2006
+
+    - add TEMPLATE_PRECOMPILE_DIR option which can
+      automatically compile all your templates on startup
+      (patch by Michael Peters)
+    - slightly refactored the default tt_template_name code
+    - doc fix (Trammell Hudson/Robert Sedlacek)
+
 1.03  Thu May 18 12:27:26 EDT 2006
 
     - the default tt_template_name method now accepts

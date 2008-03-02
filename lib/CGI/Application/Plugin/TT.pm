@@ -9,7 +9,7 @@ use Scalar::Util ();
 use strict;
 use vars qw($VERSION @EXPORT);
 
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 require Exporter;
 
@@ -112,6 +112,54 @@ sub tt_config {
           $tt_config->{TEMPLATE_NAME_GENERATOR} = delete $props->{TEMPLATE_NAME_GENERATOR};
       }
 
+      # Check for TEMPLATE_PRECOMPILE_FILETEST
+      if ($props->{TEMPLATE_PRECOMPILE_FILETEST}) {
+          carp "tt_config error:  parameter TEMPLATE_PRECOMPILE_FILETEST is not a subroutine reference or regexp or string"
+              if defined Scalar::Util::reftype($props->{TEMPLATE_PRECOMPILE_FILETEST})
+              && Scalar::Util::reftype($props->{TEMPLATE_PRECOMPILE_FILETEST}) ne 'CODE'
+              && overload::StrVal($props->{TEMPLATE_PRECOMPILE_FILETEST}) !~ /^Regexp=/;
+          $tt_config->{TEMPLATE_PRECOMPILE_FILETEST} = delete $props->{TEMPLATE_PRECOMPILE_FILETEST};
+      }
+
+      # This property must be tested last, since it creates the TT object in order to
+      # preload all the templates.
+      #
+      # Check for TEMPLATE_PRECOMPILE_DIR
+      if( $props->{TEMPLATE_PRECOMPILE_DIR} ) {
+          my $type = Scalar::Util::reftype($props->{TEMPLATE_PRECOMPILE_DIR});
+          carp "tt_config error: parameter TEMPLATE_PRECOMPILE_DIR must be a SCALAR or an ARRAY ref"
+            unless( !defined($type) or $type eq 'ARRAY' );
+
+          # now look at each file and 
+          my @dirs = ($type && $type eq 'ARRAY') ? @{$props->{TEMPLATE_PRECOMPILE_DIR}} 
+            : ($props->{TEMPLATE_PRECOMPILE_DIR});
+          delete $props->{TEMPLATE_PRECOMPILE_DIR};
+          my $tt = $self->tt_obj;
+          my $junk = '';
+          my $filetester = sub { 1 };
+          if ($tt_config->{TEMPLATE_PRECOMPILE_FILETEST}) {
+              if (! defined Scalar::Util::reftype($tt_config->{TEMPLATE_PRECOMPILE_FILETEST})) {
+                  $filetester = sub { $_[0] =~ /\.$tt_config->{TEMPLATE_PRECOMPILE_FILETEST}$/ };
+              } elsif (Scalar::Util::reftype($tt_config->{TEMPLATE_PRECOMPILE_FILETEST}) eq 'CODE') {
+                  $filetester = $tt_config->{TEMPLATE_PRECOMPILE_FILETEST};
+              } elsif (overload::StrVal($tt_config->{TEMPLATE_PRECOMPILE_FILETEST}) =~ /^Regexp=/) {
+                  $filetester = sub { $_[0] =~ $tt_config->{TEMPLATE_PRECOMPILE_FILETEST} };
+              }
+          }
+          require File::Find;
+          File::Find::find(
+            sub { 
+                my $file = $File::Find::name;
+                return unless $filetester->($file);
+                if( !-d $file ) {
+                    $tt->process( $file, {}, \$junk );
+                }
+            },
+            map { File::Spec->rel2abs($_) } @dirs,
+          );
+    
+      }
+      
       # If there are still entries left in $props then they are invalid
       carp "Invalid option(s) (".join(', ', keys %$props).") passed to tt_config" if %$props;
     }
@@ -240,7 +288,7 @@ sub tt_process {
         $vars = $file;
         $file = undef;
     }
-    $file ||= $self->tt_template_name;
+    $file ||= $self->tt_template_name(1);
     $vars ||= {};
     my $template_name = $file;
 
@@ -333,17 +381,12 @@ sub __tt_template_name {
 
     # the directory is based on the object's package name
     my $dir = File::Spec->catdir(split(/::/, ref($self)));
-    #ref($self) =~ /([^:]+)$/;
-    #my $dir = $1;
 
-    # the filename is the method name of the caller
+    # the filename is the method name of the caller plus
+    # whatever offset the user asked for
     (caller(2+$uplevel))[3] =~ /([^:]+)$/;
     my $name = $1;
-    if ($name eq 'tt_process') {
-        # we were called from tt_process, so go back once more on the caller stack
-        (caller(3+$uplevel))[3] =~ /([^:]+)$/;
-        $name = $1;
-    }
+
     return File::Spec->catfile($dir, $name.'.tmpl');
 }
 
@@ -442,14 +485,14 @@ CGI::Application::Plugin::TT - Add Template Toolkit support to CGI::Application
  sub myrunmode {
    my $self = shift;
 
-   my %params = {
+   my %params = (
                  email       => 'email@company.com',
                  menu        => [
                                  { title => 'Home',     href => '/home.html' },
                                  { title => 'Download', href => '/download.html' },
                                 ],
                  session_obj => $self->session,
-   };
+   );
 
    return $self->tt_process('template.tmpl', \%params);
  }
@@ -530,6 +573,39 @@ template filenames follow a predefined pattern.
 The default template filename generator uses the current module name, and the name of the calling
 function to generate a filename.  This means your templates are named by a combination of the
 module name, and the runmode.
+
+=item TEMPLATE_PRECOMPILE_DIR
+
+This options allows you to specify a directory (or an array of directories) to
+search when this module is loaded and then compile all files found into memory.
+This provides a speed boost in persistant environments (mod_perl, fast-cgi) and
+can improve memory usage in environments that use shared memory (mod_perl).
+
+=item TEMPLATE_PRECOMPILE_FILETEST
+
+This option allows you to specify exactly which files will get compiled when
+using the TEMPLATE_PRECOMPILE_DIR option.  You can provide it with one of 3
+different variable types:
+
+=over 4
+
+=item STRING
+
+A filename extension that can specify what type of files will be loaded (eg
+'tmpl').
+
+=item REGEXP
+
+Filenames that match the regular expression will be precompiled ( eg
+qr/\.(tt|tmpl|html)$/ ).
+
+=item CODEREF
+
+A code reference that will be called once for each filename and directory
+found, and if it returns true, the template will be precompiled (eg sub { my
+$file = shift; ... } ).
+
+=back
 
 =back
 
